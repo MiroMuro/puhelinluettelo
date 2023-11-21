@@ -1,6 +1,8 @@
+require("dotenv").config();
 const express = require("express");
 var morgan = require("morgan");
 const cors = require("cors");
+const Person = require("./models/person");
 const app = express();
 app.use(express.json());
 morgan.token("body", (req, res) => JSON.stringify(req.body));
@@ -35,8 +37,9 @@ let persons = [
 ];
 
 app.get("/api/persons", (req, res) => {
-  res.json(persons);
-  res.end();
+  Person.find({}).then((persons) => {
+    res.json(persons);
+  });
 });
 
 app.get("/api/persons/:id", (req, res) => {
@@ -74,20 +77,22 @@ app.post("/api/persons", (req, res) => {
       error: "name must be unique",
     });
   }
-  const person = {
+  const person = new Person({
     name: body.name,
     number: body.number,
     id: Math.floor(Math.random() * 1000000),
-  };
-  persons = persons.concat(person);
-  res.json(person);
+  });
+  person.save().then((savedPerson) => {
+    console.log(Person);
+    res.json(savedPerson);
+  });
 });
 
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: "unknown endpoint" });
 };
 app.use(unknownEndpoint);
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
