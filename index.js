@@ -11,82 +11,96 @@ app.use(
 );
 app.use(cors());
 app.use(express.static("dist"));
-const checkNameDuplicates = (name) => {
-  if (persons.map((p) => p.name).includes(name)) {
-    console.log("nimi on jo olemassa");
-    return false;
-  } else {
-    console.log("Puhenluettelossa ei ole tätä nimeä");
-    return true;
-  }
-};
-
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  { id: 2, name: "Ada Lovelace", number: "39 - 44 - 5323523" },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12 - 43 - 234345",
-  },
-  { id: 4, name: "Mary Poppendick", number: "39-23-642122" },
-];
 
 app.get("/api/persons", (req, res) => {
   Person.find({}).then((persons) => {
+    console.log(`persons ${persons.length}`);
     res.json(persons);
   });
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const person = persons.find((p) => p.id === id);
-
-  if (person) {
-    res.json(person);
-  } else {
-    res.status(404).end();
-  }
+app.get("/api/persons/:id", (req, res, next) => {
+  Person.findById(req.params.id)
+    .then((person) => {
+      if (person) {
+        res.json(person);
+      } else {
+        res.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 
 app.get("/api/info", (req, res) => {
-  res.send(
-    `<p>Phonebook has info for ${persons.length} people <br><br> ${Date()}</p>`
-  );
+  Person.find({}).then((persons) => {
+    console.log(`persons ${persons.length}`);
+    res.send(
+      `<p>Phonebook has info for ${
+        persons.length
+      } people <br><br> ${Date()}</p>`
+    );
+  });
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  persons = persons.filter((p) => p.id !== id);
-
-  res.status("204").end();
+app.delete("/api/persons/:id", (req, res, next) => {
+  Person.findByIdAndDelete(req.params.id)
+    .then((result) => {
+      console.log(
+        `Deleted person ${result.name}, with a phone number of ${result.number} from the phonebook`
+      );
+      res.status(200).end();
+    })
+    .catch((error) => next(error));
 });
 
-app.post("/api/persons", (req, res) => {
+app.post("/api/persons", (req, res, next) => {
   const body = req.body;
-  if (!body.name || !body.number) {
-    return res.status(400).json({
-      error: "No name or number",
-    });
-  } else if (!checkNameDuplicates(body.name)) {
-    return res.status(400).json({
-      error: "name must be unique",
-    });
-  }
+
   const person = new Person({
     name: body.name,
     number: body.number,
     id: Math.floor(Math.random() * 1000000),
   });
-  person.save().then((savedPerson) => {
-    console.log(Person);
-    res.json(savedPerson);
-  });
+  person
+    .save()
+    .then((savedPerson) => {
+      console.log(
+        `Person called ${savedPerson.name} with a phone number of ${savedPerson.number} added to the phonebook`
+      );
+      res.json(savedPerson);
+    })
+    .catch((error) => next(error));
 });
+
+app.put("/api/persons/:id", (req, res, next) => {
+  const body = req.body;
+
+  const person = {
+    name: body.name,
+    number: body.number,
+  };
+
+  Person.findByIdAndUpdate(req.params.id, person, { returnDocument: "after" })
+    .then((updatedperson) => {
+      res.json(updatedperson);
+      console.log("Käyttäjän päivitys", updatedperson);
+    })
+    .catch((error) => next(error));
+});
+
+const errorHandler = (error, request, response, next) => {
+  console.error(`***ERROR***, ${error.message}`);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "MissingContactInfo") {
+    return response.status(400).send({ error: "Missing number or name" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).send({ error: error.message });
+  }
+  next(error);
+};
+app.use(errorHandler);
 
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: "unknown endpoint" });

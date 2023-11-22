@@ -1,5 +1,5 @@
 
-@id = 3
+@id = bruh
 ###
 DELETE http://localhost:3001/api/persons/{{id}}
  
