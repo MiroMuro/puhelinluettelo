@@ -3,7 +3,6 @@ const express = require("express");
 var morgan = require("morgan");
 const cors = require("cors");
 const Person = require("./models/person");
-const { default: mongoose } = require("mongoose");
 const app = express();
 app.use(express.json());
 morgan.token("body", (req, res) => JSON.stringify(req.body));
@@ -14,7 +13,6 @@ app.use(cors());
 app.use(express.static("dist"));
 
 app.get("/api/persons", (req, res) => {
-  console.log(mongoose.version);
   Person.find({}).then((persons) => {
     console.log(`persons ${persons.length}`);
     res.json(persons);
@@ -61,7 +59,6 @@ app.post("/api/persons", (req, res, next) => {
   const person = new Person({
     name: body.name,
     number: body.number,
-    id: Math.floor(Math.random() * 1000000),
   });
   person
     .save()
@@ -82,7 +79,11 @@ app.put("/api/persons/:id", (req, res, next) => {
     number: body.number,
   };
 
-  Person.findByIdAndUpdate(req.params.id, person, { returnDocument: "after" })
+  Person.findByIdAndUpdate(req.params.id, person, {
+    returnDocument: "after",
+    runValidators: true,
+    context: "query",
+  })
     .then((updatedperson) => {
       res.json(updatedperson);
       console.log("Käyttäjän päivitys", updatedperson);
@@ -91,7 +92,7 @@ app.put("/api/persons/:id", (req, res, next) => {
 });
 
 const errorHandler = (error, request, response, next) => {
-  console.error(`***ERROR***, ${error.message}`);
+  //console.error(`***ERROR***, ${error.message}`);
 
   if (error.name === "CastError") {
     return response.status(400).send({ error: "malformatted id" });
