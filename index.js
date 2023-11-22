@@ -3,6 +3,7 @@ const express = require("express");
 var morgan = require("morgan");
 const cors = require("cors");
 const Person = require("./models/person");
+const { default: mongoose } = require("mongoose");
 const app = express();
 app.use(express.json());
 morgan.token("body", (req, res) => JSON.stringify(req.body));
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.static("dist"));
 
 app.get("/api/persons", (req, res) => {
+  console.log(mongoose.version);
   Person.find({}).then((persons) => {
     console.log(`persons ${persons.length}`);
     res.json(persons);
